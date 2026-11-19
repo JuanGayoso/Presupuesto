@@ -1,0 +1,31 @@
+# Los valores vienen del archivo .env (créalo con ./setup.sh o setup.ps1, o copia .env.example).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-evaluacion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD. Ejecuta ./setup.sh (macOS/Linux) o .\setup.ps1 (Windows) para crear el archivo .env}
+      POSTGRES_DB: ${POSTGRES_DB:-evaluacion_inmobiliaria}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-evaluacion} -d ${POSTGRES_DB:-evaluacion_inmobiliaria}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-evaluacion}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-evaluacion_inmobiliaria}
+      SEED_ON_STARTUP: ${SEED_ON_STARTUP:-true}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
